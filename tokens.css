@@ -1,0 +1,74 @@
+@font-face {
+  font-family: Nunito;
+  src: url("assets/nunito-latin.woff2") format("woff2");
+  font-weight: 600 1000;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Workbench;
+  src: url("assets/workbench-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  color-scheme: dark;
+  --font-display: Workbench, "Courier New", monospace;
+  --font-body: Nunito, ui-rounded, sans-serif;
+  --weight-body: 700;
+  --weight-bold: 900;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-stat: 1.625rem;
+  --text-title: 2.375rem;
+  --text-menu: 2.625rem;
+
+  --space-3xs: 2px;
+  --space-2xs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 40px;
+  --radius: 4px;
+  --rule: 2px;
+  --control: 36px;
+  --card-size: 52px;
+  --container: 1088px;
+  --gutter: 20px;
+  --cabinet-chrome: 252px;
+  --dur-micro: 120ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --color-paper: oklch(15% 0.036 322);
+  --color-paper-2: oklch(21% 0.052 326);
+  --color-paper-3: oklch(27% 0.064 326);
+  --color-shade: oklch(10% 0.026 321);
+  --color-ink: oklch(97% 0.015 331);
+  --color-ink-2: oklch(89% 0.032 327);
+  --color-muted: oklch(77% 0.048 327);
+  --color-rule: oklch(51% 0.075 324);
+  --color-edge: oklch(36% 0.07 326);
+  --color-accent: oklch(79% 0.157 63);
+  --color-accent-2: oklch(90% 0.162 112);
+  --color-accent-ink: oklch(17% 0.042 323);
+  --color-focus: var(--color-accent-2);
+  --color-focus-dark: var(--color-paper);
+  --color-accent-shadow: oklch(58% 0.147 49);
+  --color-title-shadow: oklch(52% 0.15 350);
+  --color-warning: oklch(80% 0.13 23);
+  --color-screen: oklch(79% 0.095 218);
+  --color-scrim: oklch(13% 0.04 322 / 0.24);
+  --color-modal-scrim: oklch(10% 0.035 322 / 0.8);
+  --color-shadow: oklch(10% 0.026 321 / 0.83);
+  --color-scanline: oklch(16% 0.028 317 / 0.05);
+  --color-turf-edge: oklch(45% 0.115 141 / 0.5);
+  --color-turf-lane: oklch(90% 0.125 122 / 0.72);
+  --color-tile-hover: oklch(96% 0.103 111 / 0.19);
+  --color-bar-track: oklch(22% 0.061 321 / 0.9);
+  --color-bar-defender: oklch(90% 0.16 120);
+  --color-bar-enemy: oklch(77% 0.16 350);
+  --color-clear: transparent;
+}

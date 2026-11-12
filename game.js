@@ -84,7 +84,7 @@ class CandyGarden {
     const type = this.selected;
     const defender = DEFENDERS[type];
     if (lane[col]) return this.say("That tile already has a defender.");
-    if (this.sugar < defender.cost) return this.say("Collect more yellow candies for sugar.");
+    if (this.sugar < defender.cost) return this.say("Collect more sugar cubes.");
     if (this.readyAt[type] > this.elapsed) return this.say("That defender is recharging.");
 
     this.sugar -= defender.cost;

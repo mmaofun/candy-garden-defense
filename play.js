@@ -3,6 +3,7 @@
 const game = new CandyGarden();
 const byId = id => document.getElementById(id);
 const field = byId("field");
+const arena = byId("arena");
 const context = field.getContext("2d");
 context.imageSmoothingEnabled = false;
 const plots = byId("plots");
@@ -23,7 +24,16 @@ const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
 const percentX = x => x / BOARD.width * 100 + "%";
 const percentY = y => y / BOARD.height * 100 + "%";
 const coinButtons = new Map();
+const theme = getComputedStyle(document.documentElement);
+const palette = {
+  laneEdge: theme.getPropertyValue("--color-turf-lane").trim(),
+  healthTrack: theme.getPropertyValue("--color-bar-track").trim(),
+  defenderHealth: theme.getPropertyValue("--color-bar-defender").trim(),
+  enemyHealth: theme.getPropertyValue("--color-bar-enemy").trim(),
+};
+const sugarIcon = "assets/SugarCube.png";
 let art;
+let previewDefender;
 let focusedTile = 0;
 let displayedMode;
 let modalReturnMode;
@@ -47,7 +57,7 @@ function makeCards() {
     button.type = "button";
     button.title = defender.tip;
     button.setAttribute("aria-label", defender.name + ", " + defender.cost + " sugar. " + defender.tip);
-    button.innerHTML = '<kbd></kbd><img class="defender-art" alt="" width="64" height="64"><span class="defender-copy"><strong></strong><span class="cost"><img src="assets/CandyCoin.png" alt="" width="17" height="17"><span></span></span></span><span class="cooldown" aria-hidden="true" hidden></span>';
+    button.innerHTML = '<kbd></kbd><img class="defender-art" alt="" width="64" height="64"><span class="defender-copy"><strong></strong><span class="cost"><img src="' + sugarIcon + '" alt="" width="17" height="17"><span></span></span></span><span class="cooldown" aria-hidden="true" hidden></span>';
     button.querySelector("kbd").textContent = type + 1;
     button.querySelector(".defender-art").src = "assets/Plant" + type + ".png";
     button.querySelector("strong").textContent = defender.label;
@@ -60,6 +70,8 @@ function makeCards() {
 
 function makePlots() {
   Object.assign(plots.style, {
+    gridTemplateRows: "repeat(" + ROWS + ", minmax(0, 1fr))",
+    gridTemplateColumns: "repeat(" + COLS + ", minmax(0, 1fr))",
     left: percentX(BOARD.left), top: percentY(BOARD.top),
     width: percentX(BOARD.cellWidth * COLS), height: percentY(BOARD.cellHeight * ROWS),
   });
@@ -133,6 +145,7 @@ function closeDialog() {
 function syncMode(focus = true) {
   if (displayedMode === game.mode) return;
   displayedMode = game.mode;
+  arena.dataset.mode = game.mode;
   const playing = game.mode === "playing";
   overlay.hidden = playing;
   plots.inert = !playing;
@@ -145,8 +158,8 @@ function syncMode(focus = true) {
   const content = {
     title: ["Defend the garden", "Plant candy defenders and survive all 10 waves.", "Start game"],
     paused: ["Game paused", "", "Resume game"],
-    won: ["Garden defended!", game.defeated + " monsters defeated · " + game.score + " points", "Play again"],
-    lost: ["The garden was overrun", "Wave " + game.wave + " · " + game.score + " points", "Try again"],
+    won: ["Garden defended!", game.defeated + " monsters defeated, " + game.score + " points", "Play again"],
+    lost: ["The garden was overrun", "Wave " + game.wave + ", " + game.score + " points", "Try again"],
   }[game.mode];
   overlayTitle.textContent = content[0];
   overlayCopy.textContent = content[1];
@@ -188,7 +201,16 @@ function renderHud() {
     cooldown.hidden = remaining === 0;
     if (remaining) setText(cooldown, remaining + "s");
   });
-  shovel.setAttribute("aria-pressed", String(game.selected === "shovel"));
+  const shoveling = game.selected === "shovel";
+  shovel.setAttribute("aria-pressed", String(shoveling));
+  plots.classList.toggle("has-shovel", shoveling);
+  const canPlant = game.mode === "playing" && !shoveling
+    && game.sugar >= DEFENDERS[game.selected].cost && game.readyAt[game.selected] <= game.elapsed;
+  plots.classList.toggle("can-plant", canPlant);
+  if (canPlant && previewDefender !== game.selected) {
+    previewDefender = game.selected;
+    plots.style.setProperty("--placement-art", 'url("assets/Plant' + previewDefender + '.png")');
+  }
   const hint = game.mode === "playing" && game.messageUntil > game.elapsed ? game.message
     : game.selected === "shovel" ? "Tap a planted tile to remove its defender."
       : "Select a defender, then tap a garden tile.";
@@ -199,8 +221,11 @@ function renderHud() {
 
   for (const { button, row, col } of plotButtons) {
     const plant = game.plants[row][col];
-    const label = "Lane " + (row + 1) + ", tile " + (col + 1) + " · " + (plant ? DEFENDERS[plant.type].name : "empty");
-    if (button.getAttribute("aria-label") !== label) button.setAttribute("aria-label", label);
+    const label = "Lane " + (row + 1) + ", tile " + (col + 1) + ", " + (plant ? DEFENDERS[plant.type].name : "empty");
+    if (button.getAttribute("aria-label") !== label) {
+      button.setAttribute("aria-label", label);
+      button.classList.toggle("occupied", Boolean(plant));
+    }
   }
 }
 
@@ -216,15 +241,42 @@ function drawSprite(sheet, column, row, x, y, size, angle = 0, opacity = 1, flas
 
 function healthBar(x, y, health, max, enemy) {
   if (health >= max || health <= 0) return;
-  context.fillStyle = "#47213fe0";
+  context.fillStyle = palette.healthTrack;
   context.fillRect(x - 16, y, 32, 5);
-  context.fillStyle = enemy ? "#ff82a8" : "#dcff89";
+  context.fillStyle = enemy ? palette.enemyHealth : palette.defenderHealth;
   context.fillRect(x - 15, y + 1, 30 * health / max, 3);
+}
+
+function paintGarden(boardImage) {
+  const { cellWidth, cellHeight } = BOARD;
+  const turf = document.createElement("canvas");
+  turf.width = cellWidth * COLS;
+  turf.height = cellHeight * ROWS;
+  const brush = turf.getContext("2d");
+  brush.imageSmoothingEnabled = false;
+
+  // Reuse intact patches of the board art so the visible squares follow the planting grid.
+  const grass = [
+    [[265, 144], [444, 202], [266, 317]],
+    [[176, 144], [353, 202], [536, 260]],
+  ];
+  for (let row = 0; row < ROWS; row++) {
+    for (let col = 0; col < COLS; col++) {
+      const [sourceX, sourceY] = grass[(row + col) % 2][(row * 2 + col) % 3];
+      brush.drawImage(boardImage, sourceX, sourceY, 70, 50,
+        col * cellWidth, row * cellHeight, cellWidth, cellHeight);
+    }
+  }
+
+  brush.fillStyle = palette.laneEdge;
+  for (let row = 1; row < ROWS; row++) brush.fillRect(0, row * cellHeight - 1, turf.width, 2);
+  return turf;
 }
 
 function drawBoard() {
   context.clearRect(0, 0, BOARD.width, BOARD.height);
   if (!art) return;
+  context.drawImage(art.turf, BOARD.left, BOARD.top);
   const animate = !motionPreference.matches;
   for (const lane of game.plants) {
     for (const plant of lane) {
@@ -283,7 +335,9 @@ function renderCoins() {
       button.className = "pickup";
       button.setAttribute("aria-label", "Collect 25 sugar");
       const icon = document.createElement("img");
-      icon.src = "assets/CandyCoin.png";
+      icon.src = sugarIcon;
+      icon.width = 128;
+      icon.height = 128;
       icon.alt = "";
       button.append(icon);
       button.addEventListener("click", () => {
@@ -421,14 +475,16 @@ document.addEventListener("visibilitychange", () => {
 
 syncMode(false);
 renderHud();
-Promise.all(["PlantsPrimary.png", "PlantsDefense.png", "CandyEnemies.png", "CandyBoard.png"].map(loadImage))
-  .then(([primary, defense, enemies]) => {
-    art = { primary, defense, enemies };
+Promise.all(["PlantsPrimary.png", "PlantsDefense.png", "CandyEnemies.png", "CandyBoard.png", "SugarCube.png"].map(loadImage))
+  .then(([primary, defense, enemies, board]) => {
+    art = { primary, defense, enemies, turf: paintGarden(board) };
+    overlayAction.removeAttribute("aria-busy");
     overlayAction.disabled = false;
     overlayAction.textContent = "Start game";
     requestAnimationFrame(frame);
   })
   .catch(() => {
+    overlayAction.removeAttribute("aria-busy");
     overlayTitle.textContent = "The garden couldn’t load";
     overlayCopy.textContent = "Refresh the page to try again.";
     overlayAction.hidden = true;
